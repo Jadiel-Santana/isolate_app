@@ -21,32 +21,24 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchData() async {
-    ReceivePort receivePort = ReceivePort();
-    Isolate isolate = await Isolate.spawn(_fetchDataInIsolate, receivePort.sendPort);
+    final list = await Isolate.run(_fetchDataInIsolate);
 
-    receivePort.listen((message) {
-      if (message is List<String>) {
-        setState(() {
-          _data = List.from(message);
-        });
-        receivePort.close();
-        isolate.kill();
-      }
+    setState(() {
+      _data = List.from(list);
     });
   }
 
-  static void _fetchDataInIsolate(SendPort sendPort) async {
+  static Future<List<String>> _fetchDataInIsolate() async {
     try {
       final response = await http.get(Uri.parse('https://jsonplaceholder.typicode.com/photos'));
       if (response.statusCode == 200) {
         final List<dynamic> responseData = json.decode(response.body);
-        final List<String> images = responseData.map((e) => e['url'] as String).toList();
-        sendPort.send(images);
+        return responseData.map((e) => e['url'] as String).toList();
       } else {
         throw Exception('Failed to load data');
       }
-    } catch (e) {
-      sendPort.send(e);
+    } catch (_) {
+      return [];
     }
   }
 
@@ -55,7 +47,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('API Call with Isolate.spawn Example'),
+        title: const Text('API Call with Isolate.run Example'),
         centerTitle: true,
       ),
       body: Center(
